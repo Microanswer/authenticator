@@ -4,3 +4,6 @@
 
 
 ![](./preview.jpg)
+
+
+在线使用: [点击跳转](https://test.microanswer.cn/authenticator.html)
