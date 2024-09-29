@@ -3,6 +3,9 @@ const HtmlInlineCssPlugin = require("html-inline-css-webpack-plugin");
 const HtmlInlineScriptPlugin = require("html-inline-script-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+const CopyPlugin = require("copy-webpack-plugin");
+const packageJson = require("./package.json");
+const path = require("node:path");
 const devMode = process.env.NODE_ENV !== "production";
 module.exports = {
     entry: [
@@ -35,6 +38,7 @@ module.exports = {
     devServer: {
         open: true,
         compress: true,
+        static: __dirname + "/src/public/",
         port: 3000
     },
     plugins: [
@@ -52,9 +56,27 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: "./src/app.ejs",
             scriptLoading: "blocking",
-            inject: true
+            inject: true,
+            packageInfo: {
+                version: packageJson.version,
+                buildAt: new Date().toString()
+            }
         }),
-        new HtmlInlineScriptPlugin(),
-        new HtmlInlineCssPlugin.default()
+        new HtmlInlineCssPlugin.default(),
+        ...(function() {
+            let productionPlugin = [];
+            if (process.env.NODE_ENV === "production") {
+                productionPlugin.push(new HtmlInlineScriptPlugin());
+                productionPlugin.push(new CopyPlugin({
+                    patterns: [
+                        {
+                            context: path.join(__dirname , "./src/public"),
+                            from: path.join(__dirname , "./src/public/**/*").replace(/\\/g, '/'),
+                            to: path.join(__dirname,  "./dist").replace(/\\/g, '/'), force: true}
+                    ]
+                }))
+            }
+            return productionPlugin
+        })()
     ]
 }

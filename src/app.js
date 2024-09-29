@@ -1,4 +1,8 @@
+let protobuf = window.protobuf;
+let {Buffer} = require("buffer");
+const base32 = require('./script/edbase32');
 let BtnStartDom = document.querySelector(`#btn-start`);
+let BtnImportFromGoogleDom = document.querySelector(`#btn-import-from-google-app`);
 let TextAreaDom = document.querySelector(`#textareaIn`);
 let ResultsDom = document.querySelector(`#results`);
 let AtipDom = document.querySelector(`.atip`);
@@ -69,9 +73,15 @@ function leftpad(str, len, pad) {
     return str
 }
 
+function showAlert(msg) {
+    alert_modal.querySelector("#alert_msg").textContent = msg;
+    alert_modal.showModal();
+}
 
-function Authenticator(token) {
+function Authenticator(token, email, issuer) {
     this.token = token;
+    this.email = email;
+    this.issuer = issuer;
     this.dom = this.newDom();
 }
 
@@ -84,7 +94,14 @@ Authenticator.prototype.newDom = function () {
     let newDom = domTemplate.cloneNode(true);
     newDom.classList.remove("hidden");
     newDom.removeAttribute("data-domtype");
-    newDom.querySelector(`.atoken`).textContent = this.token;
+    if (this.email) {
+        newDom.querySelector(`.atoken`).textContent = "(" + this.issuer + ") " + this.email;
+        let btnDetail = newDom.querySelector(`.adetail`);
+        btnDetail.classList.remove("hidden");
+        btnDetail.addEventListener("click", this.onDetailClick.bind(this))
+    } else {
+        newDom.querySelector(`.atoken`).textContent = this.token;
+    }
     newDom.querySelector(".aclose").addEventListener("click", this.onCloseClick.bind(this));
     return newDom;
 }
@@ -109,7 +126,12 @@ Authenticator.prototype.update = function () {
     rd.style.setProperty("--value",percent * 100);
     rd.textContent = Math.round(percent * 30);
 }
-
+Authenticator.prototype.onDetailClick = function () {
+    document.querySelector(".remail").textContent = this.email;
+    document.querySelector(".rissuer").textContent = this.issuer;
+    document.querySelector(".rtoken").textContent = this.token;
+    detail_modal.showModal();
+}
 Authenticator.prototype.onCloseClick = function () {
     this.dom.remove();
     let index = authenticators.indexOf(this);
@@ -118,36 +140,103 @@ Authenticator.prototype.onCloseClick = function () {
     }
 }
 
+function toBase32(raw) {
+    return base32.encode(raw);
+}
 
-
-
-BtnStartDom.addEventListener("click", function () {
-    let value = TextAreaDom.value.trim() || "";
-    if (!value) {
-        return
-    }
-
-    try {
-        getToken(value, {timestamp: Date.now()})
-    }catch (err) {
-        showTip("你输入的Token有误，[" + err.message +"]。");
+function doImportGoogleAuthenticator() {
+    let value = document.querySelector(`#textareaImport`).value;
+    if (value.trim().length <= 0) {
         return;
     }
 
-    var authenticator = new Authenticator(value);
-    ResultsDom.append(authenticator.dom);
-    authenticators.push(authenticator);
+    try {
+        const queryParams = new URL(value).search;
+        if (!queryParams) {
+            throw new Error("你输入的内容有误");
+        }
 
-    TextAreaDom.value = "";
-    hideTip();
-});
+        const data = new URLSearchParams(queryParams).get("data");
+        if (!data) {
+            throw new Error("你输入的内容有误，缺失 data 参数。");
+        }
 
-requestAnimationFrame(function render() {
+        const buffer = Buffer.from(decodeURIComponent(data), "base64");
 
-    for (let i = 0; i < authenticators.length; i++) {
-        authenticators[i].update();
+        protobuf.load("./google_auth.proto", function (err, root) {
+            if (err) {
+                showAlert(err.message);
+                return;
+            }
+
+            const MigrationPayload = root.lookupType("googleauth.MigrationPayload");
+
+            const message = MigrationPayload.decode(buffer);
+
+            const result = MigrationPayload.toObject(message, {
+                longs: String,
+                enums: String,
+                bytes: String,
+            });
+
+            result.otpParameters.map(account => {
+                var authenticator = new Authenticator(toBase32(Buffer.from(account.secret, "base64")), account.name, account.issuer);
+                ResultsDom.append(authenticator.dom);
+                authenticators.push(authenticator);
+
+                return account;
+            });
+            document.querySelector(`#textareaImport`).value = "";
+            import_from_google_modal.close();
+        });
+
+    }catch (e) {
+        showAlert(e.message);
     }
 
-    requestAnimationFrame(render);
-});
+}
 
+window.onload = function () {
+
+
+
+
+    BtnStartDom.addEventListener("click", function () {
+        let value = TextAreaDom.value.trim() || "";
+        if (!value) {
+            return
+        }
+
+        try {
+            getToken(value, {timestamp: Date.now()})
+        }catch (err) {
+            showTip("你输入的Token有误，[" + err.message +"]。");
+            return;
+        }
+
+        var authenticator = new Authenticator(value);
+        ResultsDom.append(authenticator.dom);
+        authenticators.push(authenticator);
+
+        TextAreaDom.value = "";
+        hideTip();
+    });
+    BtnImportFromGoogleDom.addEventListener("click", function () {
+        import_from_google_modal.showModal();
+    });
+
+    document.querySelector(`.import_from_google_modal_confirm`).addEventListener("click", doImportGoogleAuthenticator);
+
+
+    requestAnimationFrame(function render() {
+
+        for (let i = 0; i < authenticators.length; i++) {
+            authenticators[i].update();
+        }
+
+        requestAnimationFrame(render);
+    });
+
+
+
+}
