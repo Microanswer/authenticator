@@ -1,8 +1,8 @@
 {
   "name": "authenticator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "This is a project template that integrates Tailwind CSS and Webpack, ultimately exporting a single HTML file.",
-  "main": "index.js",
+  "main": "src/app.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development webpack serve --mode=development",
     "build": "cross-env NODE_ENV=production webpack build --mode=production"
@@ -12,7 +12,6 @@
   "devDependencies": {
     "autoprefixer": "^10.4.20",
     "buffer": "^6.0.3",
-    "copy-webpack-plugin": "^12.0.2",
     "cross-env": "^7.0.3",
     "css-loader": "^7.1.2",
     "css-minimizer-webpack-plugin": "^7.0.0",

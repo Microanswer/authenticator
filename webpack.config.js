@@ -3,9 +3,7 @@ const HtmlInlineCssPlugin = require("html-inline-css-webpack-plugin");
 const HtmlInlineScriptPlugin = require("html-inline-script-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
-const CopyPlugin = require("copy-webpack-plugin");
 const packageJson = require("./package.json");
-const path = require("node:path");
 const devMode = process.env.NODE_ENV !== "production";
 module.exports = {
     entry: [
@@ -67,14 +65,6 @@ module.exports = {
             let productionPlugin = [];
             if (process.env.NODE_ENV === "production") {
                 productionPlugin.push(new HtmlInlineScriptPlugin());
-                productionPlugin.push(new CopyPlugin({
-                    patterns: [
-                        {
-                            context: path.join(__dirname , "./src/public"),
-                            from: path.join(__dirname , "./src/public/**/*").replace(/\\/g, '/'),
-                            to: path.join(__dirname,  "./dist").replace(/\\/g, '/'), force: true}
-                    ]
-                }))
             }
             return productionPlugin
         })()

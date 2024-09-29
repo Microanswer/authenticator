@@ -6,6 +6,51 @@ let BtnImportFromGoogleDom = document.querySelector(`#btn-import-from-google-app
 let TextAreaDom = document.querySelector(`#textareaIn`);
 let ResultsDom = document.querySelector(`#results`);
 let AtipDom = document.querySelector(`.atip`);
+let googleAuth = `syntax = "proto3";
+
+package googleauth;
+
+message MigrationPayload {
+  enum Algorithm {
+    ALGORITHM_UNSPECIFIED = 0;
+    SHA1 = 1;
+    SHA256 = 2;
+    SHA512 = 3;
+    MD5 = 4;
+  }
+
+  enum DigitCount {
+    DIGIT_COUNT_UNSPECIFIED = 0;
+    SIX = 1;
+    EIGHT = 2;
+    SEVEN = 3;
+  }
+
+  enum OtpType {
+    OTP_TYPE_UNSPECIFIED = 0;
+    HOTP = 1;
+    TOTP = 2;
+  }
+
+  message OtpParameters {
+    bytes secret = 1;
+    string name = 2;
+    string issuer = 3;
+    Algorithm algorithm = 4;
+    DigitCount digits = 5;
+    OtpType type = 6;
+    int64 counter = 7;
+    string unique_id = 8;
+  }
+
+  repeated OtpParameters otp_parameters = 1;
+  int32 version = 2;
+  int32 batch_size = 3;
+  int32 batch_index = 4;
+  int32 batch_id = 5;
+}
+`;
+protobuf.common(".googleAuth", googleAuth);
 
 function showTip(msg) {
     AtipDom.textContent = msg;
@@ -94,12 +139,13 @@ Authenticator.prototype.newDom = function () {
     let newDom = domTemplate.cloneNode(true);
     newDom.classList.remove("hidden");
     newDom.removeAttribute("data-domtype");
+    let btnDetail = newDom.querySelector(`.adetail`);
     if (this.email) {
         newDom.querySelector(`.atoken`).textContent = "(" + this.issuer + ") " + this.email;
-        let btnDetail = newDom.querySelector(`.adetail`);
         btnDetail.classList.remove("hidden");
         btnDetail.addEventListener("click", this.onDetailClick.bind(this))
     } else {
+        btnDetail.classList.add("hidden");
         newDom.querySelector(`.atoken`).textContent = this.token;
     }
     newDom.querySelector(".aclose").addEventListener("click", this.onCloseClick.bind(this));
@@ -163,7 +209,7 @@ function doImportGoogleAuthenticator() {
 
         const buffer = Buffer.from(decodeURIComponent(data), "base64");
 
-        protobuf.load("./google_auth.proto", function (err, root) {
+        protobuf.load(".googleAuth", function (err, root) {
             if (err) {
                 showAlert(err.message);
                 return;
@@ -214,7 +260,7 @@ window.onload = function () {
             return;
         }
 
-        var authenticator = new Authenticator(value);
+        var authenticator = new Authenticator(value, "", "");
         ResultsDom.append(authenticator.dom);
         authenticators.push(authenticator);
 
