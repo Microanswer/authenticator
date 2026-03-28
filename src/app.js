@@ -262,6 +262,8 @@ window.onload = function () {
       return
     }
 
+    value = value.replace(/ /g, "");
+
     try {
       getToken(value, { timestamp: Date.now() })
     } catch (err) {
