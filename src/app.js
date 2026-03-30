@@ -1,3 +1,5 @@
+import { ShowToast } from './script/Toast'
+
 let protobuf = window.protobuf
 let { Buffer } = require('buffer')
 const base32 = require('./script/edbase32')
@@ -155,6 +157,7 @@ Authenticator.prototype.newDom = function () {
   newDom
     .querySelector('.aclose')
     .addEventListener('click', this.onCloseClick.bind(this))
+  newDom.addEventListener('click', this.onDomClick.bind(this))
   return newDom
 }
 
@@ -173,15 +176,18 @@ Authenticator.prototype.update = function () {
 
   let code = getToken(this.token, { timestamp: Date.now() })
   if (this.code !== code) {
-    this.code = code;
+    this.code = code
     // 有变化才更新界面
     this.dom.querySelector('.acode').textContent = '动态密码：' + this.code
   }
 
   let percent = (m - z) / (30 * 1000)
-  let rd = this.dom.querySelector('.aradial')
-  rd.style.setProperty('--value', percent * 100)
-  rd.textContent = Math.round(percent * 30)
+  // console.log(33, this.dom.style.getPropertyValue("--percent"));
+  this.dom.style.setProperty('--percent', percent * 100 + '%')
+  // this.dom.style["--bg-active-color"] = percent + "%";
+  // let rd = this.dom.querySelector('.aradial')
+  // rd.style.setProperty('--value', percent * 100)
+  // rd.textContent = Math.round(percent * 30)
 }
 Authenticator.prototype.onDetailClick = function () {
   document.querySelector('.remail').textContent = this.email
@@ -189,7 +195,18 @@ Authenticator.prototype.onDetailClick = function () {
   document.querySelector('.rtoken').textContent = this.token
   detail_modal.showModal()
 }
-Authenticator.prototype.onCloseClick = function () {
+Authenticator.prototype.onDomClick = function () {
+  if (window.navigator.clipboard) {
+    window.navigator.clipboard.writeText(this.code)
+    ShowToast({
+      type: 'success',
+      message: '已复制'
+    })
+  }
+}
+Authenticator.prototype.onCloseClick = function (event) {
+  event.stopPropagation()
+  event.preventDefault()
   this.dom.remove()
   let index = authenticators.indexOf(this)
   if (index !== -1) {
@@ -262,18 +279,30 @@ window.onload = function () {
       return
     }
 
-    value = value.replace(/ /g, "");
+    let rows = value.split('\n')
 
-    try {
-      getToken(value, { timestamp: Date.now() })
-    } catch (err) {
-      showTip('你输入的Token有误，[' + err.message + ']。')
-      return
+    for (let row of rows) {
+      try {
+        row = row.replace(/ /g, '').trim()
+        getToken(row, { timestamp: Date.now() })
+      } catch (err) {
+        showTip('你输入的Token有误，[' + err.message + ']。')
+        return
+      }
+
+      let indx = authenticators.findIndex(v => v.token === row)
+
+      if (indx === -1) {
+        var authenticator = new Authenticator(row, '', '')
+        ResultsDom.append(authenticator.dom)
+        authenticators.push(authenticator)
+      } else {
+        ShowToast({
+          type: 'warning',
+          message: row + ' 已存在'
+        })
+      }
     }
-
-    var authenticator = new Authenticator(value, '', '')
-    ResultsDom.append(authenticator.dom)
-    authenticators.push(authenticator)
 
     TextAreaDom.value = ''
     hideTip()
